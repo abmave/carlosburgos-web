@@ -30,3 +30,16 @@ Inicio, perfil del estudio, especialidades, equipo, casos aprobados, actualidad,
 5. RELEASE-001: pruebas y despliegue cPanel.
 
 No publicar credenciales, documentos privados, consentimientos ni datos de clientes en este repositorio público.
+
+## Desarrollo con Docker
+
+Solo Docker Desktop con contenedores Linux y Compose v2.
+
+```powershell
+cd C:\DEV\carlosburgos
+docker compose up -d --build --wait --wait-timeout 300
+```
+
+Web: http://localhost:5180 · CMS: http://localhost:5180/admin
+
+[Arranque, creación del administrador y persistencia](docs/DOCKER.md).
