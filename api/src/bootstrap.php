@@ -3,6 +3,20 @@ declare(strict_types=1);
 function config(): array {
     static $config;
     if ($config === null) {
+        // Container configuration takes precedence; never writes credentials into the image.
+        if (getenv('CB_DB_HOST') !== false) {
+            $password = getenv('CB_DB_PASSWORD');
+            if ($password === false || $password === '') throw new RuntimeException('Missing database password');
+            $config = [
+                'environment' => getenv('CB_ENVIRONMENT') ?: 'production',
+                'db_host' => getenv('CB_DB_HOST'),
+                'db_port' => (int)(getenv('CB_DB_PORT') ?: 3306),
+                'db_name' => getenv('CB_DB_NAME') ?: 'carlosburgos',
+                'db_user' => getenv('CB_DB_USER') ?: 'carlosburgos',
+                'db_password' => $password,
+            ];
+            return $config;
+        }
         $file = dirname(__DIR__) . '/config.local.php';
         if (!is_file($file)) throw new RuntimeException('Missing local configuration');
         $config = require $file;
