@@ -1,0 +1,9 @@
+node_modules/
+dist/
+vendor/
+.env
+.env.*
+!.env.example
+*.log
+api/config.local.php
+api/storage/
