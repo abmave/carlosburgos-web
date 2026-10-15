@@ -2,7 +2,13 @@
 
 El primer flujo del CMS permite iniciar sesión, editar textos de Inicio y contacto, y publicarlos en MariaDB. La web pública consulta ese contenido al cargar. El formulario público de consultas sigue sin enviar datos. Especialidades, equipo, casos, multimedia, artículos, citas y administración de usuarios aún no tienen CRUD.
 
-## Requisitos locales
+## Desarrollo habitual con Docker
+
+Usar [la guía Docker](DOCKER.md): `docker compose up -d --build --wait --wait-timeout 300`. PHP, Node.js y MariaDB se ejecutan en contenedores. Abrir http://localhost:5180/admin y crear la cuenta con docker/create-admin.ps1.
+
+Los pasos siguientes son una alternativa sin Docker y una referencia para el hosting; no requieren instalar herramientas en Windows para el flujo habitual.
+
+## Requisitos de la alternativa sin Docker
 
 - Node.js compatible con Vite y npm.
 - PHP 8.2 o superior con PDO y pdo_mysql, sesiones, JSON y OpenSSL habilitados.
