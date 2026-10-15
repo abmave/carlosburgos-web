@@ -1,25 +1,507 @@
-import React, { useEffect, useState } from 'react';
-export const defaults={brandName:'Carlos Burgos Huapaya',heroTitle:'Su tranquilidad.',heroAccent:'Nuestra prioridad.',heroDescription:'Asesoría legal y administrativa con atención personalizada, claridad y compromiso.',studyTitle:'El primer paso es entender su situación.',studyLead:'Cada consulta merece tiempo, atención y una explicación comprensible.',studyDescription:'Un espacio para conocer sus necesidades, evaluar las alternativas y definir los siguientes pasos de su atención legal.',contactEmail:'',contactPhone:'',whatsapp:'',address:'',schedule:''};
-async function request(path, options={}) {
- const response=await fetch('/api/'+path,{...options,credentials:'same-origin',headers:{'Content-Type':'application/json',...options.headers}});
- let data;try{data=await response.json()}catch{throw new Error('La API no está disponible. Inicie el servidor PHP y configure MariaDB.')}
- if(!response.ok){const error=new Error(data.error||'No se pudo completar la solicitud.');error.status=response.status;throw error}
- return data;
+import { Editor, MediaLibrary, Users, modules } from "./editorial.jsx";
+import React, { useEffect, useState } from "react";
+export const defaults = {
+  brandName: "Carlos Burgos Huapaya",
+  heroTitle: "Su tranquilidad.",
+  heroAccent: "Nuestra prioridad.",
+  heroDescription:
+    "Asesoría legal y administrativa con atención personalizada, claridad y compromiso.",
+  studyTitle: "El primer paso es entender su situación.",
+  studyLead:
+    "Cada consulta merece tiempo, atención y una explicación comprensible.",
+  studyDescription:
+    "Un espacio para conocer sus necesidades, evaluar las alternativas y definir los siguientes pasos de su atención legal.",
+  contactEmail: "",
+  contactPhone: "",
+  whatsapp: "",
+  address: "",
+  schedule: "",
+};
+async function request(path, options = {}) {
+  const response = await fetch("/api/" + path, {
+    ...options,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...options.headers },
+  });
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Servicio no disponible. Intente nuevamente.");
+  }
+  if (!response.ok) {
+    const error = new Error(data.error || "No se pudo completar la solicitud.");
+    error.status = response.status;
+    throw error;
+  }
+  return data;
 }
-export function usePublicSettings(){const [content,setContent]=useState(defaults);useEffect(()=>{const controller=new AbortController();request('public/settings',{signal:controller.signal}).then(data=>setContent({...defaults,...data.content})).catch(()=>{});return()=>controller.abort()},[]);return content}
-const fields=[['brandName','Nombre del estudio',120],['heroTitle','Título de portada',100],['heroAccent','Frase destacada de portada',100],['heroDescription','Descripción de portada',500],['studyTitle','Título del estudio',160],['studyLead','Presentación del estudio',500],['studyDescription','Descripción del estudio',1500],['contactEmail','Correo de contacto',190],['contactPhone','Teléfono',40],['whatsapp','WhatsApp (código de país y solo dígitos)',15],['address','Dirección',300],['schedule','Horario de atención',300]];
-const pending=['Especialidades','Equipo','Casos y aprobación','Actualidad','Multimedia','Citas y consultas','Usuarios y permisos'];
-export default function CMS(){
- const [session,setSession]=useState(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[page,setPage]=useState('dashboard'),[content,setContent]=useState(null),[version,setVersion]=useState(0),[dirty,setDirty]=useState(false);
- async function refresh(){setLoading(true);setError('');try{setSession(await request('admin/session'))}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{refresh()},[]);
- useEffect(()=>{if(!dirty)return;const warn=e=>{e.preventDefault();e.returnValue=''};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty]);
- function failure(e){setError(e.message);if(e.status===401){setSession(null);setDirty(false)}}
- async function login(e){e.preventDefault();setBusy(true);setError('');const form=new FormData(e.currentTarget);try{const s=await request('admin/login',{method:'POST',headers:{'X-CSRF-Token':session.csrf},body:JSON.stringify({email:form.get('email'),password:form.get('password')})});setSession(s)}catch(e){setError(e.message)}finally{setBusy(false)}}
- async function openSettings(){if(dirty&&!window.confirm('Hay cambios sin publicar. ¿Descartarlos y cargar la versión guardada?'))return;setPage('settings');setBusy(true);setError('');setSuccess('');try{const data=await request('admin/settings');setContent(data.content);setVersion(data.version);setDirty(false)}catch(e){failure(e)}finally{setBusy(false)}}
- async function save(e){e.preventDefault();setBusy(true);setError('');setSuccess('');try{const data=await request('admin/settings',{method:'PUT',headers:{'X-CSRF-Token':session.csrf},body:JSON.stringify({content,version})});setContent(data.content);setVersion(data.version);setDirty(false);setSuccess('Contenido publicado. Abra la web para ver los cambios.')}catch(e){failure(e)}finally{setBusy(false)}}
- async function logout(){if(dirty&&!window.confirm('¿Cerrar sesión y descartar los cambios sin publicar?'))return;setBusy(true);setError('');try{await request('admin/logout',{method:'POST',headers:{'X-CSRF-Token':session.csrf}});setContent(null);setDirty(false);setPage('dashboard');await refresh()}catch(e){failure(e)}finally{setBusy(false)}}
- if(loading)return <main className="cmsLoading" role="status">Cargando panel…</main>;
- if(!session?.user)return <main className="loginWrap"><div className="loginIntro"><p className="eyebrow">CARLOS BURGOS HUAPAYA</p><h1>Su estudio.<br/>Bajo su control.</h1><p>Administre el contenido de la web desde un único lugar.</p><a href="/">← Volver al sitio</a></div><form className="loginCard" onSubmit={login}><p className="eyebrow">BACKOFFICE</p><h2>Iniciar sesión</h2><p>Acceso exclusivo para el equipo autorizado.</p>{error&&<p className="cmsError" role="alert">{error}</p>}<label>Correo electrónico<input name="email" type="email" required autoComplete="username" maxLength="190"/></label><label>Contraseña<input name="password" type="password" required autoComplete="current-password" maxLength="72"/></label><button className="button" disabled={busy||!session?.csrf}>{busy?'Ingresando…':'Ingresar al panel →'}</button>{!session?.csrf&&<button className="cmsSecondary" type="button" onClick={refresh}>Reintentar conexión</button>}<p className="cmsHelp">Si necesita acceso, comuníquese con el administrador del estudio.</p></form></main>;
- return <div className="cmsShell"><aside className="cmsSidebar"><a className="cmsBrand" href="/admin">CB <span>GESTIÓN DEL ESTUDIO</span></a><p className="cmsCaption">PRINCIPAL</p><button aria-current={page==='dashboard'?'page':undefined} onClick={()=>setPage('dashboard')}>Resumen</button><button aria-current={page==='settings'?'page':undefined} onClick={openSettings}>Inicio y configuración</button><p className="cmsCaption">PRÓXIMOS MÓDULOS</p>{pending.map(x=><button key={x} disabled>{x}<small>Pendiente</small></button>)}<a className="cmsView" href="/" target="_blank" rel="noreferrer">Ver sitio web ↗</a></aside><main className="cmsMain"><div className="cmsTop"><div><span className="eyebrow">BACKOFFICE</span><p>{session.user.name} · {session.user.role==='admin'?'Administrador':'Editor'}</p></div><button className="cmsSecondary" onClick={logout} disabled={busy}>Cerrar sesión</button></div>{error&&<p className="cmsError" role="alert">{error}</p>}{success&&<p className="cmsSuccess" role="status">{success}</p>}{page==='dashboard'?<><h1>Bienvenido a su estudio.</h1><p className="cmsSubtitle">Actualice su presentación y los datos de contacto que ven sus visitantes.</p><div className="cmsStats"><article><span>DISPONIBLE</span><h2>Inicio y configuración</h2><p>Portada, presentación y contacto.</p><button className="button" onClick={openSettings}>Editar contenido →</button></article><article><span>PRÓXIMO BLOQUE</span><h2>Gestión de contenidos</h2><p>Especialidades, equipo, casos, actualidad y multimedia se habilitarán en las siguientes entregas.</p></article></div><p className="cmsHelp">Los cambios se publican al guardar. El registro de auditoría conserva quién publicó cada versión.</p></>:<><div className="cmsTitle"><div><h1>Inicio y configuración</h1><p className="cmsSubtitle">Edite los textos y publique los cambios en la web.</p></div><span className="cmsVersion">Versión {version||'—'} {dirty?'· Cambios sin publicar':''}</span></div>{content?<form onSubmit={save} className="cmsForm"><fieldset disabled={busy}><legend>Contenido público</legend>{fields.map(([key,label,max])=><label key={key}>{label}{max>=300?<textarea name={key} value={content[key]} rows={key==='studyDescription'?4:3} maxLength={max} required={key in defaults&&!['contactEmail','contactPhone','whatsapp','address','schedule'].includes(key)} onChange={e=>{setContent({...content,[key]:e.target.value});setDirty(true);setSuccess('')}}/>:<input name={key} value={content[key]} maxLength={max} type={key==='contactEmail'?'email':'text'} required={['brandName','heroTitle','heroAccent','studyTitle'].includes(key)} onChange={e=>{setContent({...content,[key]:e.target.value});setDirty(true);setSuccess('')}}/>}</label>)}</fieldset><div className="cmsSave"><p>{dirty?'Hay cambios pendientes de publicación.':'Contenido sincronizado con el servidor.'}</p><button className="cmsSecondary" type="button" onClick={openSettings} disabled={busy}>Recargar guardado</button><button className="button" disabled={busy||!dirty}>{busy?'Guardando…':'Guardar y publicar'}</button></div></form>:<button className="cmsSecondary" onClick={openSettings} disabled={busy}>{busy?'Cargando…':'Reintentar carga'}</button>}</>}</main></div>;
+export function usePublicSettings() {
+  const [content, setContent] = useState(defaults);
+  useEffect(() => {
+    const controller = new AbortController();
+    request("public/settings", { signal: controller.signal })
+      .then((data) => setContent({ ...defaults, ...data.content }))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  return content;
+}
+const fields = [
+  ["brandName", "Nombre del estudio", 120],
+  ["heroTitle", "Título de portada", 100],
+  ["heroAccent", "Frase destacada de portada", 100],
+  ["heroDescription", "Descripción de portada", 500],
+  ["studyTitle", "Título del estudio", 160],
+  ["studyLead", "Presentación del estudio", 500],
+  ["studyDescription", "Descripción del estudio", 1500],
+  ["contactEmail", "Correo de contacto", 190],
+  ["contactPhone", "Teléfono", 40],
+  ["whatsapp", "WhatsApp (código de país y solo dígitos)", 15],
+  ["address", "Dirección", 300],
+  ["schedule", "Horario de atención", 300],
+  ["linkedin", "LinkedIn (HTTPS)", 500],
+  ["facebook", "Facebook (HTTPS)", 500],
+  ["instagram", "Instagram (HTTPS)", 500],
+];
+const pending = ["Citas y consultas"];
+export default function CMS() {
+  const [session, setSession] = useState(null),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [success, setSuccess] = useState(""),
+    [page, setPage] = useState("dashboard"),
+    [content, setContent] = useState(null),
+    [version, setVersion] = useState(0),
+    [dirty, setDirty] = useState(false);
+  function navigate(next) {
+    if (dirty && !confirm("¿Descartar cambios sin guardar?")) return;
+    setDirty(false);
+    setPage(next);
+  }
+  async function refresh() {
+    setLoading(true);
+    setError("");
+    try {
+      setSession(await request("admin/session"));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    refresh();
+  }, []);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  function failure(e) {
+    setError(e.message);
+    if (e.status === 401) {
+      setSession(null);
+      setDirty(false);
+    }
+  }
+  async function login(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const form = new FormData(e.currentTarget);
+    try {
+      const s = await request("admin/login", {
+        method: "POST",
+        headers: { "X-CSRF-Token": session.csrf },
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+        }),
+      });
+      setSession(s);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function openSettings() {
+    if (
+      dirty &&
+      !window.confirm(
+        "Hay cambios sin publicar. ¿Descartarlos y cargar la versión guardada?",
+      )
+    )
+      return;
+    setPage("settings");
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const data = await request("admin/settings");
+      setContent({
+        linkedin: "",
+        facebook: "",
+        instagram: "",
+        ...data.content,
+      });
+      setVersion(data.version);
+      setDirty(false);
+    } catch (e) {
+      failure(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const data = await request("admin/settings", {
+        method: "PUT",
+        headers: { "X-CSRF-Token": session.csrf },
+        body: JSON.stringify({ content, version }),
+      });
+      setContent({
+        linkedin: "",
+        facebook: "",
+        instagram: "",
+        ...data.content,
+      });
+      setVersion(data.version);
+      setDirty(false);
+      setSuccess("Contenido publicado. Abra la web para ver los cambios.");
+    } catch (e) {
+      failure(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function logout() {
+    if (
+      dirty &&
+      !window.confirm("¿Cerrar sesión y descartar los cambios sin publicar?")
+    )
+      return;
+    setBusy(true);
+    setError("");
+    try {
+      await request("admin/logout", {
+        method: "POST",
+        headers: { "X-CSRF-Token": session.csrf },
+      });
+      setContent(null);
+      setDirty(false);
+      setPage("dashboard");
+      await refresh();
+    } catch (e) {
+      failure(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (loading)
+    return (
+      <main className="cmsLoading" role="status">
+        Cargando panel…
+      </main>
+    );
+  if (!session?.user)
+    return (
+      <main className="loginWrap">
+        <div className="loginIntro">
+          <p className="eyebrow">CARLOS BURGOS HUAPAYA</p>
+          <h1>
+            Su estudio.
+            <br />
+            Bajo su control.
+          </h1>
+          <p>Administre el contenido de la web desde un único lugar.</p>
+          <a href="/">← Volver al sitio</a>
+        </div>
+        <form className="loginCard" onSubmit={login}>
+          <p className="eyebrow">BACKOFFICE</p>
+          <h2>Iniciar sesión</h2>
+          <p>Acceso exclusivo para el equipo autorizado.</p>
+          {error && (
+            <p className="cmsError" role="alert">
+              {error}
+            </p>
+          )}
+          <label>
+            Correo electrónico
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="username"
+              maxLength="190"
+            />
+          </label>
+          <label>
+            Contraseña
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              maxLength="72"
+            />
+          </label>
+          <button className="button" disabled={busy || !session?.csrf}>
+            {busy ? "Ingresando…" : "Ingresar al panel →"}
+          </button>
+          {!session?.csrf && (
+            <button className="cmsSecondary" type="button" onClick={refresh}>
+              Reintentar conexión
+            </button>
+          )}
+          <p className="cmsHelp">
+            Si necesita acceso, comuníquese con el administrador del estudio.
+          </p>
+        </form>
+      </main>
+    );
+  return (
+    <div className="cmsShell">
+      <aside className="cmsSidebar">
+        <a className="cmsBrand" href="/admin">
+          CB <span>GESTIÓN DEL ESTUDIO</span>
+        </a>
+        <p className="cmsCaption">PRINCIPAL</p>
+        <button
+          aria-current={
+            modules[page] ? (
+              <Editor
+                key={page}
+                kind={page}
+                session={session}
+                onDirty={setDirty}
+              />
+            ) : page === "media" ? (
+              <MediaLibrary session={session} />
+            ) : page === "users" ? (
+              <Users session={session} onDirty={setDirty} />
+            ) : page === "dashboard" ? (
+              "page"
+            ) : undefined
+          }
+          onClick={() => navigate("dashboard")}
+        >
+          Resumen
+        </button>
+        <button
+          aria-current={page === "settings" ? "page" : undefined}
+          onClick={openSettings}
+        >
+          Inicio y configuración
+        </button>
+        <p className="cmsCaption">CONTENIDO EDITORIAL</p>
+        {Object.entries(modules).map(([k, v]) => (
+          <button
+            key={k}
+            onClick={() => navigate(k)}
+            aria-current={page === k ? "page" : undefined}
+          >
+            {v}
+          </button>
+        ))}
+        <button onClick={() => navigate("media")}>Biblioteca multimedia</button>
+        {session.user.role === "admin" && (
+          <button onClick={() => navigate("users")}>Usuarios y permisos</button>
+        )}
+        <p className="cmsCaption">PENDIENTE</p>
+        {pending.map((x) => (
+          <button key={x} disabled>
+            {x}
+            <small>Pendiente</small>
+          </button>
+        ))}
+        <a className="cmsView" href="/" target="_blank" rel="noreferrer">
+          Ver sitio web ↗
+        </a>
+      </aside>
+      <main className="cmsMain">
+        <div className="cmsTop">
+          <div>
+            <span className="eyebrow">BACKOFFICE</span>
+            <p>
+              {session.user.name} ·{" "}
+              {session.user.role === "admin" ? "Administrador" : "Editor"}
+            </p>
+          </div>
+          <button className="cmsSecondary" onClick={logout} disabled={busy}>
+            Cerrar sesión
+          </button>
+        </div>
+        {error && (
+          <p className="cmsError" role="alert">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="cmsSuccess" role="status">
+            {success}
+          </p>
+        )}
+        {modules[page] ? (
+          <Editor key={page} kind={page} session={session} onDirty={setDirty} />
+        ) : page === "media" ? (
+          <MediaLibrary session={session} />
+        ) : page === "users" ? (
+          <Users session={session} onDirty={setDirty} />
+        ) : page === "dashboard" ? (
+          <>
+            <h1>Bienvenido a su estudio.</h1>
+            <p className="cmsSubtitle">
+              Actualice su presentación y los datos de contacto que ven sus
+              visitantes.
+            </p>
+            <div className="cmsStats">
+              <article>
+                <span>DISPONIBLE</span>
+                <h2>Inicio y configuración</h2>
+                <p>Portada, presentación y contacto.</p>
+                <button className="button" onClick={openSettings}>
+                  Editar contenido →
+                </button>
+              </article>
+              <article>
+                <span>DISPONIBLE</span>
+                <h2>Gestión de contenidos</h2>
+                <p>
+                  Gestione borradores, publicaciones y archivos desde el menú
+                  editorial. Los casos requieren aprobación administrativa.
+                </p>
+              </article>
+            </div>
+            <p className="cmsHelp">
+              Los cambios se publican al guardar. El registro de auditoría
+              conserva quién publicó cada versión.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="cmsTitle">
+              <div>
+                <h1>Inicio y configuración</h1>
+                <p className="cmsSubtitle">
+                  Edite los textos y publique los cambios en la web.
+                </p>
+              </div>
+              <span className="cmsVersion">
+                Versión {version || "—"} {dirty ? "· Cambios sin publicar" : ""}
+              </span>
+            </div>
+            {content ? (
+              <form onSubmit={save} className="cmsForm">
+                <fieldset disabled={busy}>
+                  <legend>Contenido público</legend>
+                  {fields.map(([key, label, max]) => (
+                    <label key={key}>
+                      {label}
+                      {max >= 300 ? (
+                        <textarea
+                          name={key}
+                          value={content[key]}
+                          rows={key === "studyDescription" ? 4 : 3}
+                          maxLength={max}
+                          required={
+                            key in defaults &&
+                            ![
+                              "contactEmail",
+                              "contactPhone",
+                              "whatsapp",
+                              "address",
+                              "schedule",
+                            ].includes(key)
+                          }
+                          onChange={(e) => {
+                            setContent({ ...content, [key]: e.target.value });
+                            setDirty(true);
+                            setSuccess("");
+                          }}
+                        />
+                      ) : (
+                        <input
+                          name={key}
+                          value={content[key]}
+                          maxLength={max}
+                          type={key === "contactEmail" ? "email" : "text"}
+                          required={[
+                            "brandName",
+                            "heroTitle",
+                            "heroAccent",
+                            "studyTitle",
+                          ].includes(key)}
+                          onChange={(e) => {
+                            setContent({ ...content, [key]: e.target.value });
+                            setDirty(true);
+                            setSuccess("");
+                          }}
+                        />
+                      )}
+                    </label>
+                  ))}
+                </fieldset>
+                <details>
+                  <summary>Seleccionar imagen de portada</summary>
+                  <MediaLibrary
+                    session={session}
+                    choose={(id) => {
+                      setContent({ ...content, heroImageId: id });
+                      setDirty(true);
+                    }}
+                  />
+                </details>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContent({ ...content, heroImageId: null });
+                    setDirty(true);
+                  }}
+                >
+                  Restaurar retrato suministrado
+                </button>
+                <div className="cmsSave">
+                  <p>
+                    {dirty
+                      ? "Hay cambios pendientes de publicación."
+                      : "Contenido sincronizado con el servidor."}
+                  </p>
+                  <button
+                    className="cmsSecondary"
+                    type="button"
+                    onClick={openSettings}
+                    disabled={busy}
+                  >
+                    Recargar guardado
+                  </button>
+                  <button className="button" disabled={busy || !dirty}>
+                    {busy ? "Guardando…" : "Guardar y publicar"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                className="cmsSecondary"
+                onClick={openSettings}
+                disabled={busy}
+              >
+                {busy ? "Cargando…" : "Reintentar carga"}
+              </button>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  );
 }

@@ -7,3 +7,5 @@ vendor/
 *.log
 api/config.local.php
 api/storage/
+
+.local/

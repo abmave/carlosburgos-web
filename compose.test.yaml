@@ -1,0 +1,24 @@
+services:
+  api:
+    environment:
+      CB_TEST_MODE: '1'
+    volumes:
+      - ./tests:/tests:ro
+  runner:
+    image: node:22-alpine
+    profiles: [test]
+    working_dir: /tests
+    environment:
+      CB_TEST_API: http://api:8080/api
+    volumes:
+      - ./tests:/tests:ro
+      - api_storage:/storage:ro
+    command: [node, editorial.mjs]
+  browser:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: [test]
+    working_dir: /tmp/browser
+    volumes:
+      - ./tests:/tests:ro
+      - api_storage:/storage:ro
+    command: [sh, -c, 'npm install --no-save playwright@1.56.1 && cp /tests/browser.cjs /tmp/browser/browser.cjs && node browser.cjs']

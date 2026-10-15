@@ -1,0 +1,24 @@
+const {chromium}=require('playwright');
+const fs=require('fs'),assert=require('assert/strict');
+(async()=>{
+ const {password}=JSON.parse(fs.readFileSync('/storage/test-credentials.json'));
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://web:5173/admin');
+ await page.getByLabel('Correo electrónico').fill('admin@example.invalid');await page.getByLabel('Contraseña',{exact:true}).fill(password);await page.getByRole('button',{name:'Ingresar al panel'}).click();
+ await page.getByRole('button',{name:'Actualidad',exact:true}).click();await page.getByRole('button',{name:'Crear contenido'}).click();
+ const slug='navegador-'+Date.now();
+ await page.getByLabel('Título',{exact:true}).fill('Publicación desde navegador');await page.getByLabel('Dirección legible').fill(slug);await page.getByLabel('Cuerpo del artículo').fill('<script>window.pwned=true</script>\nTexto editorial seguro.');
+ await page.getByRole('button',{name:'Guardar borrador / cambios'}).click();await page.getByRole('status').filter({hasText:'Guardado: Borrador.'}).waitFor();
+ const publicPage=await browser.newPage();await publicPage.goto('http://web:5173/articles/'+slug);await publicPage.getByRole('alert').filter({hasText:'Contenido no encontrado'}).waitFor();
+ await page.getByRole('button',{name:'Publicar',exact:true}).click();await page.getByRole('status').filter({hasText:'Guardado: Publicado.'}).waitFor();
+ await publicPage.reload();await publicPage.getByRole('heading',{name:'Publicación desde navegador'}).waitFor();assert.equal(await publicPage.evaluate(()=>window.pwned),undefined);assert.ok((await publicPage.textContent('main')).includes('<script>'));
+ await page.getByRole('button',{name:'Equipo',exact:true}).click();await page.getByRole('button',{name:'Crear contenido'}).click();await page.getByLabel('Nombre',{exact:true}).fill('Sin guardar');
+ let warned=false;page.once('dialog',async dialog=>{warned=true;await dialog.dismiss()});await page.getByRole('button',{name:'Actualidad',exact:true}).click();assert.ok(warned);assert.equal(await page.getByLabel('Nombre',{exact:true}).inputValue(),'Sin guardar');
+ await publicPage.setViewportSize({width:390,height:844});await publicPage.goto('http://web:5173/');await publicPage.getByRole('heading',{name:'Persistencia CMS 002'}).waitFor();assert.ok(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));
+ await publicPage.keyboard.press('Tab');assert.ok(await publicPage.evaluate(()=>document.activeElement.tagName!=='BODY'));
+ await publicPage.goto('http://web:5173/no-existe');await publicPage.getByRole('heading',{name:'Página no encontrada'}).waitFor();
+ assert.deepEqual(errors,[]);console.log('PASS browser: login, draft, publication, detail, safe text, unsaved warning, mobile overflow, keyboard focus, 404, no JavaScript errors.');
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
