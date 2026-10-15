@@ -1,5 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Email, [string]$Name = "Administrador")
 $ErrorActionPreference = "Stop"
+$previousOutputEncoding = $OutputEncoding
+$OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $secret = Read-Host "Contraseña del administrador (12 a 72 bytes)" -AsSecureString
 $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
 try {
@@ -8,4 +10,5 @@ try {
 } finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
     $secret.Dispose()
+    $OutputEncoding = $previousOutputEncoding
 }
