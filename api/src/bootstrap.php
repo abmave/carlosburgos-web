@@ -40,11 +40,11 @@ function respond(array $data, int $status = 200): never {
 }
 function body(): array {
     if (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== 0) respond(['error' => 'Se requiere JSON.'], 415);
-    $input = file_get_contents('php://input', false, null, 0, 16385);
-    if (strlen($input) > 16384) respond(['error' => 'Solicitud demasiado extensa.'], 413);
+    $input = file_get_contents('php://input', false, null, 0, 100001);
+    if (strlen($input) > 100000) respond(['error' => 'Solicitud demasiado extensa.'], 413);
     try { $data = json_decode($input, true, 32, JSON_THROW_ON_ERROR); }
     catch (JsonException $e) { respond(['error' => 'JSON inválido.'], 400); }
-    if (!is_array($data) || array_is_list($data)) respond(['error' => 'Objeto JSON requerido.'], 400);
+    if (!is_array($data) || !str_starts_with(ltrim($input), '{')) respond(['error' => 'Objeto JSON requerido.'], 400);
     return $data;
 }
 function beginSession(): void {
@@ -55,7 +55,7 @@ function beginSession(): void {
     ini_set('session.use_only_cookies', '1');
     session_name('cb_session');
     session_set_cookie_params(['lifetime' => 0, 'path' => '/api', 'secure' => $production, 'httponly' => true, 'samesite' => 'Strict']);
-    $sessionPath = dirname(__DIR__) . '/storage/sessions';
+    $sessionPath = (getenv('CB_STORAGE_PATH') ?: dirname(__DIR__).'/storage') . '/sessions';
     if (!is_dir($sessionPath) && !mkdir($sessionPath, 0700, true) && !is_dir($sessionPath)) throw new RuntimeException('Session directory unavailable');
     session_save_path($sessionPath);
     if (!session_start()) throw new RuntimeException('Session unavailable');
@@ -70,17 +70,19 @@ function csrf(): void {
 }
 function currentUser(): ?array {
     if (!isset($_SESSION['user_id'])) return null;
-    $q = db()->prepare('SELECT id, name, email, role FROM cms_users WHERE id = ? AND active = 1');
+    $q = db()->prepare('SELECT id, name, email, role, session_version FROM cms_users WHERE id = ? AND active = 1');
     $q->execute([$_SESSION['user_id']]);
     $user = $q->fetch();
-    if (!$user) { unset($_SESSION['user_id']); return null; }
+    if (!$user || (int)$user['session_version'] !== ($_SESSION['session_version'] ?? 0)) { unset($_SESSION['user_id']); return null; }
     $_SESSION['last_seen'] = time();
+    unset($user['session_version']);
     return $user;
 }
 function requireEditor(): array {
     $user = currentUser();
     if (!$user) respond(['error' => 'Inicie sesión para continuar.'], 401);
     if (!in_array($user['role'], ['admin', 'editor'], true)) respond(['error' => 'Sin permiso de edición.'], 403);
+    unset($user['session_version']);
     return $user;
 }
 function settings(): array {

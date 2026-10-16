@@ -1,0 +1,45 @@
+name: CMS editorial
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: cb-cms002-ci
+      CB_WEB_PORT: '5182'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ephemeral database credentials
+        run: |
+          echo "CB_DB_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          echo "CB_DB_ROOT_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+      - name: Build and start containers
+        run: docker compose -f compose.yaml -f compose.test.yaml up -d --build --wait --wait-timeout 300
+      - name: Syntax and production build
+        run: |
+          docker compose exec -T api sh -c 'find api -name "*.php" -not -path "*/storage/*" -exec php -l {} \;'
+          docker compose exec -T web npm run build
+      - name: API acceptance
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/seed.php
+          docker compose -f compose.yaml -f compose.test.yaml run --rm runner
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/control.php clear-rate
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/expired-fixtures.php
+          docker compose -f compose.yaml -f compose.test.yaml run --rm runner node supplemental.mjs
+      - name: Password activation and reset regression
+        run: docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/password_reset.php
+      - name: Browser acceptance
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/control.php clear-rate
+          docker compose -f compose.yaml -f compose.test.yaml run --rm browser
+      - name: Persistence and migration replay
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php api/bin/console.php migrate
+          docker compose -f compose.yaml -f compose.test.yaml down
+          docker compose -f compose.yaml -f compose.test.yaml up -d --wait --wait-timeout 300
+          docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/control.php persist
+      - name: Service state
+        if: always()
+        run: docker compose -f compose.yaml -f compose.test.yaml ps -a

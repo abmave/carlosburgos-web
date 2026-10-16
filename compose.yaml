@@ -7,11 +7,12 @@ x-api: &api-base
     dockerfile: docker/php.Dockerfile
   environment: &api-env
     CB_ENVIRONMENT: local
+    CB_STORAGE_PATH: /storage
     CB_DB_HOST: db
     CB_DB_PORT: "3306"
     CB_DB_NAME: carlosburgos
     CB_DB_USER: carlosburgos
-    CB_DB_PASSWORD: ${CB_DB_PASSWORD:-cb_local_dev_only}
+    CB_DB_PASSWORD: ${CB_DB_PASSWORD:?Configure CB_DB_PASSWORD in .env}
   working_dir: /app
   volumes:
     - ./api:/app/api:ro
@@ -28,8 +29,8 @@ services:
     environment:
       MARIADB_DATABASE: carlosburgos
       MARIADB_USER: carlosburgos
-      MARIADB_PASSWORD: ${CB_DB_PASSWORD:-cb_local_dev_only}
-      MARIADB_ROOT_PASSWORD: ${CB_DB_ROOT_PASSWORD:-cb_local_root_dev_only}
+      MARIADB_PASSWORD: ${CB_DB_PASSWORD:?Configure CB_DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${CB_DB_ROOT_PASSWORD:?Configure CB_DB_ROOT_PASSWORD in .env}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -52,7 +53,7 @@ services:
     volumes:
       - ./api:/app/api:ro
       - ./database:/app/database:ro
-      - api_storage:/app/api/storage
+      - api_storage:/storage
     depends_on:
       db:
         condition: service_healthy
