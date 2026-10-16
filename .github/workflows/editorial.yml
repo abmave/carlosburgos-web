@@ -28,6 +28,8 @@ jobs:
           docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/control.php clear-rate
           docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/expired-fixtures.php
           docker compose -f compose.yaml -f compose.test.yaml run --rm runner node supplemental.mjs
+      - name: Password activation and reset regression
+        run: docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/password_reset.php
       - name: Browser acceptance
         run: |
           docker compose -f compose.yaml -f compose.test.yaml exec -T api php /tests/control.php clear-rate

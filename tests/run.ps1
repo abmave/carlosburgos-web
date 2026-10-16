@@ -18,6 +18,7 @@ try {
     Compose exec -T api php /tests/control.php clear-rate
     Compose exec -T api php /tests/expired-fixtures.php
     Compose run --rm runner node supplemental.mjs
+    Compose exec -T api php /tests/password_reset.php
     Compose run --rm browser
     Compose exec -T api php api/bin/console.php migrate
     Compose down

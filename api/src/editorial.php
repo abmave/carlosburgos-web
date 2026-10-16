@@ -166,7 +166,13 @@ function mediaRoutes(string $path,string $method): void {
 
 function userRoutes(string $path,string $method): void {
  if($path==='/api/admin/reset-password'&&$method==='POST'){
-  csrf();$data=body();$token=textField($data['token']??'',100);$pw=textField($data['password']??'',72);if(strlen($pw)<12)respond(['error'=>'Contraseña de 12 a 72 bytes.'],422);
+  csrf();$data=body();$token=textField($data['token']??'',100);
+  // Passwords are opaque secrets: preserve their bytes, including boundary spaces.
+  // Validate before opening the transaction or consuming the one-time token.
+  $pw=$data['password']??null;
+  if(!is_string($pw)||strlen($pw)<12||strlen($pw)>72||str_contains($pw,"\0")) {
+   respond(['error'=>'Contraseña de 12 a 72 bytes, sin caracteres NUL.'],422);
+  }
   $db=db();$db->beginTransaction();$q=$db->prepare('SELECT user_id FROM password_resets WHERE token_hash=? AND expires_at>UTC_TIMESTAMP() FOR UPDATE');$q->execute([hash('sha256',$token)]);$id=$q->fetchColumn();if(!$id)respond(['error'=>'Enlace inválido o vencido.'],422);
   $q=$db->prepare('UPDATE cms_users SET password_hash=?,session_version=session_version+1 WHERE id=?');$q->execute([password_hash($pw,PASSWORD_BCRYPT,['cost'=>12]),$id]);$q=$db->prepare('DELETE FROM password_resets WHERE user_id=?');$q->execute([$id]);auditAction(['id'=>$id],'password.reset');$db->commit();respond(['ok'=>true]);
  }

@@ -75,3 +75,41 @@ La SPA entrega HTML con título institucional fijo y noindex; no implementa prer
 Continúan deshabilitados o expresamente pendientes: agenda, envío de consultas, SMTP, recordatorios, pagos, portal de clientes, IA, bandeja omnicanal, sincronización de redes, dominio y despliegue. No hubo merge ni publicación al hosting.
 
 Operación reproducible: [CB-CMS-002-RUNBOOK.md](CB-CMS-002-RUNBOOK.md).
+
+## Revisión PR #1 — Corrección P2 de contraseña (16 de octubre de 2026)
+
+Hallazgo revisado sobre `c648995c807a5be5f0ba03ea22b8840e9688d98d`: activación/restablecimiento pasaban el secreto por `textField()`, cuyo `trim()` almacenaba una contraseña distinta cuando había espacios al principio o al final. Login ya verificaba los bytes originales.
+
+La corrección se limita a `/api/admin/reset-password`: comprueba que el valor sea string, mida entre 12 y 72 bytes y no contenga NUL. Devuelve 422 antes de abrir la transacción ante entradas inválidas; no aplica recorte ni normalización. Mantiene bcrypt con coste 12, CSRF, transacción, caducidad, uso único y revocación de sesiones mediante versión. No requiere migración ni modifica el resto de módulos.
+
+### Regresión y resultados reales
+
+Se añadió `tests/password_reset.php`, integrado en `tests/run.ps1` y en un paso específico del workflow CMS editorial. Genera secretos aleatorios de prueba sin imprimirlos; solo funciona en un entorno desechable sembrado con `CB_TEST_MODE=1` y exige PHP 8.2.
+
+Primero se ejecutó contra el código anterior en `cb-password-repro-20261016`: falló con `Stored hash does not match exact password`, reproduciendo el hallazgo. Después de la corrección pasó 137 comprobaciones en PHP 8.2.34.
+
+| Regresión | Resultado |
+| --- | --- |
+| Activación y reset con espacios iniciales/finales | 200 al guardar; login exacto 200; versión recortada 401. |
+| Secreto habitual y UTF-8 | Login exacto correcto y hash bcrypt verificado. |
+| Límites inclusivos de 12 y 72 bytes | Aceptados, incluyendo 12 bytes con espacios y UTF-8 de 72 bytes. |
+| null, booleanos, números, array, objeto o campo ausente | 422 controlado. |
+| Vacío, menos de 12 bytes, más de 72 bytes, UTF-8 de más de 72 bytes y NUL | 422 controlado, sin 500/503. |
+| Estado después de cada entrada inválida | Hash, versión de sesión, tokens y contador de auditoría de reset idénticos al estado previo; sesión anterior aún válida. |
+| Token inválido, vencido y reutilizado | 422; sin cambios de hash, versión, tokens ni auditoría. |
+| Reset válido | Consume tokens, incrementa exactamente una vez la versión e invalida la sesión previa. |
+
+Validación completa nueva: `./tests/run.ps1 -Port 5192`, proyecto `cb-cms002-test-20261016161925`, salida 0. Pasaron sintaxis PHP, build Vite, las 87 comprobaciones API existentes, suite suplementaria, las 137 comprobaciones nuevas, navegador Chromium y persistencia tras repetir migraciones y `down/up`.
+
+```text
+PASS password regression: 137 checks; exact spaces, UTF-8, byte boundaries,
+invalid values unchanged, token lifecycle and session revocation (PHP 8.2.34).
+PASS browser: login, draft, publication, detail, safe text, unsaved warning,
+mobile overflow, keyboard focus, 404, no JavaScript errors.
+PASS persisted settings, editorial records and media after down/up.
+PASS acceptance: cb-cms002-test-20261016161925.
+```
+
+Log local ignorado: `.local/password-acceptance.log`. Los dos proyectos de prueba se detuvieron sin borrar sus volúmenes. No se modificaron la cuenta real del administrador, su contraseña ni su invitación; no se regeneró el archivo privado de activación.
+
+La CI de la revisión anterior no acredita esta corrección. El workflow ahora incluye `Password activation and reset regression`; el cierre del PR registra el SHA nuevo y su ejecución remota específica. Se mantiene el mismo PR #1 y su base `feature/CB-FOUNDATION-001`, sin merge ni despliegue.
