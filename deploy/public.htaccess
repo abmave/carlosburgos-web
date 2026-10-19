@@ -1,0 +1,15 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.html
+RewriteEngine On
+# Only this domain's document root. Never install in DaleOK's directory.
+RewriteCond %{HTTP_HOST} !^carlosburgosh\.com$ [NC,OR]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://carlosburgosh.com%{REQUEST_URI} [R=301,L,NE]
+RewriteRule (^|/)(\.|private(?:/|$)|storage(?:/|$)|database(?:/|$)|backups(?:/|$)|vendor(?:/|$)) - [F,L]
+RewriteRule ^api(?:/.*)?$ api/index.php [END]
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [END]
+RewriteRule ^assets(?:/|$) - [R=404,L]
+RewriteRule \.[a-zA-Z0-9]+$ - [R=404,L]
+RewriteRule ^ index.html [END]

@@ -1,0 +1,24 @@
+name: Shared hosting package
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  apache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build versioned package in Docker
+        shell: pwsh
+        run: ./deploy/build.ps1
+      - name: Apache HTTPS package acceptance
+        shell: pwsh
+        run: |
+          $package=(Get-ChildItem .local/releases -Directory | Select-Object -First 1).FullName
+          ./deploy/test.ps1 -PackagePath $package
+      - name: Upload package without private configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: carlosburgos-package
+          path: .local/releases/*.zip
+          retention-days: 14

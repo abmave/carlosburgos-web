@@ -117,7 +117,7 @@ function mediaRoutes(string $path,string $method): void {
  if(preg_match('~^/api/(public/media|admin/evidence)/([0-9]+)$~D',$path,$m)&&$method==='GET'){
   $private=$m[1]==='admin/evidence';if($private)adminOnly();
   $q=db()->prepare('SELECT * FROM media_files WHERE id=? AND private_case_id IS '.($private?'NOT NULL':'NULL'));$q->execute([$m[2]]);$r=$q->fetch();if(!$r)respond(['error'=>'No encontrado.'],404);
-  $file=(getenv('CB_STORAGE_PATH') ?: dirname(__DIR__).'/storage').'/'.($private?'private':'media').'/'.$r['filename'];if(!is_file($file))respond(['error'=>'No encontrado.'],404);
+  $file=storagePath().'/'.($private?'private':'media').'/'.$r['filename'];if(!is_file($file))respond(['error'=>'No encontrado.'],404);
   header('Content-Type: '.$r['mime']);header('Content-Length: '.$r['size']);header('Content-Disposition: '.($r['mime']==='application/pdf'?'attachment':'inline').'; filename="'.$r['filename'].'"');readfile($file);exit;
  }
  if(!preg_match('~^/api/admin/(media|evidence)(?:/([0-9]+))?$~D',$path,$m))return;
@@ -137,6 +137,7 @@ function mediaRoutes(string $path,string $method): void {
   $ext=strtolower(pathinfo($f['name'],PATHINFO_EXTENSION));$mime=(new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);$types=['jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','webp'=>'image/webp','pdf'=>'application/pdf'];
   if(!isset($types[$ext])||$types[$ext]!==$mime||preg_match('~[/\\\\]~',$f['name']))respond(['error'=>'Tipo o nombre de archivo inválido.'],422);
   if($mime==='application/pdf'){
+   if(!pdfUploadsEnabled() || !function_exists('exec'))respond(['error'=>'La carga PDF está deshabilitada en este servidor. Utilice JPEG, PNG o WebP.'],422);
    // qpdf parses the complete object/xref structure; warnings also reject damaged PDFs.
    exec('qpdf --check '.escapeshellarg($f['tmp_name']).' 2>&1',$output,$exit);if($exit!==0)respond(['error'=>'PDF corrupto.'],422);
    // Never serve PDF inline; active PDF content cannot become a same-origin document.
@@ -147,7 +148,7 @@ function mediaRoutes(string $path,string $method): void {
    if($mime==='image/jpeg')imagejpeg($im,$f['tmp_name'],90);elseif($mime==='image/png')imagepng($im,$f['tmp_name']);else imagewebp($im,$f['tmp_name'],90);imagedestroy($im);
   }
   $case=null;if($private){$case=(int)($_POST['case_id']??0);$q=$db->prepare("SELECT id FROM editorial_content WHERE id=? AND kind='cases'");$q->execute([$case]);if(!$q->fetch())respond(['error'=>'Caso inexistente.'],422);}
-  $title=textField($_POST['title']??$f['name'],200);$alt=textField($_POST['alt']??'',300);$name=bin2hex(random_bytes(24)).'.'.$ext;$dir=(getenv('CB_STORAGE_PATH') ?: dirname(__DIR__).'/storage').'/'.($private?'private':'media');if(!is_dir($dir))mkdir($dir,0700,true);
+  $title=textField($_POST['title']??$f['name'],200);$alt=textField($_POST['alt']??'',300);$name=bin2hex(random_bytes(24)).'.'.$ext;$dir=storagePath().'/'.($private?'private':'media');if(!is_dir($dir))mkdir($dir,0700,true);
   if(!move_uploaded_file($f['tmp_name'],$dir.'/'.$name))throw new RuntimeException('Upload unavailable');
   $db->beginTransaction();$q=$db->prepare('INSERT INTO media_files(filename,mime,size,title,alt,private_case_id,created_by) VALUES(?,?,?,?,?,?,?)');$q->execute([$name,$mime,filesize($dir.'/'.$name),$title,$alt,$case,$u['id']]);$id=(int)$db->lastInsertId();auditAction($u,$private?'evidence.uploaded':'media.uploaded');$db->commit();respond(['id'=>$id,'title'=>$title,'alt'=>$alt,'mime'=>$mime,'version'=>1],201);
  }
@@ -159,7 +160,7 @@ function mediaRoutes(string $path,string $method): void {
   if($private)respond(['error'=>'La evidencia se conserva para auditoría.'],409);
   $q=$db->prepare("SELECT id FROM editorial_content WHERE (JSON_EXTRACT(content,'$.image_id')=? OR JSON_CONTAINS(JSON_EXTRACT(content,'$.gallery_ids'),?)) LIMIT 1");$q->execute([(int)$id,(string)(int)$id]);$s=settings()['content'];
   if($q->fetch()||($s['heroImageId']??null)==$id)respond(['error'=>'Medio utilizado. Retire primero sus referencias.'],409);
-  $q=$db->prepare('DELETE FROM media_files WHERE id=?');$q->execute([$id]);auditAction($u,'media.deleted');$db->commit();unlink((getenv('CB_STORAGE_PATH') ?: dirname(__DIR__).'/storage').'/media/'.$r['filename']);respond(['ok'=>true]);
+  $q=$db->prepare('DELETE FROM media_files WHERE id=?');$q->execute([$id]);auditAction($u,'media.deleted');$db->commit();unlink(storagePath().'/media/'.$r['filename']);respond(['ok'=>true]);
  }
  $q=$db->prepare('UPDATE media_files SET title=?,alt=?,version=version+1 WHERE id=?');$q->execute([textField($data['title']??'',200),textField($data['alt']??'',300),$id]);auditAction($u,'media.updated',(int)$r['version']+1);$db->commit();respond(['ok'=>true,'version'=>(int)$r['version']+1]);
 }

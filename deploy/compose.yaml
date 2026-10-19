@@ -1,0 +1,52 @@
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_DATABASE: carlos_test
+      MARIADB_USER: carlos_test
+      MARIADB_PASSWORD: ${CB_DB_PASSWORD:?}
+      MARIADB_ROOT_PASSWORD: ${CB_DB_ROOT_PASSWORD:?}
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      retries: 30
+  apache:
+    build:
+      context: ..
+      dockerfile: deploy/apache.Dockerfile
+    environment:
+      CB_DB_HOST: db
+      CB_DB_NAME: carlos_test
+      CB_DB_USER: carlos_test
+      CB_DB_PASSWORD: ${CB_DB_PASSWORD:?}
+      CB_ENVIRONMENT: production
+      CB_PUBLIC_ORIGIN: https://carlosburgosh.com
+      CB_STORAGE_PATH: /storage
+      CB_PDF_UPLOADS: ${CB_PDF_UPLOADS:-0}
+      CB_TEST_MODE: '1'
+    volumes:
+      - ${CB_RELEASE_PATH:?}:/srv/carlos:ro
+      - storage:/storage
+      - ../tests:/tests:ro
+      - ../deploy:/checks:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      default:
+        aliases: [carlosburgosh.com, www.carlosburgosh.com]
+  browser:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: [test]
+    working_dir: /tmp/browser
+    environment:
+      CB_EXPECT_PDF: ${CB_PDF_UPLOADS:-0}
+    volumes:
+      - ../deploy:/checks:ro
+      - storage:/storage:ro
+    command: [sh, -c, 'npm install --no-save playwright@1.56.1 >/dev/null && cp /checks/apache-test.cjs ./check.cjs && node check.cjs']
+volumes:
+  db:
+  storage:

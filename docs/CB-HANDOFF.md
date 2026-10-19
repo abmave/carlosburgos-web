@@ -78,3 +78,9 @@ No publicar ni reutilizar automáticamente activaciones, enlaces de reset o sesi
 - Para otra PC: transferir/restaurar de forma privada los datos necesarios y verificar cuenta, configuración y archivos; Git por sí solo no reproduce esos datos.
 - Confirmar con el titular si esperaba contenido editorial: esta base tiene cero registros. Recuperarlo de una fuente autorizada si corresponde, sin inventarlo.
 - No hay una corrección de código conocida incompleta del P2. No se inició otro módulo. Hosting y demás módulos permanecen fuera de esta entrega.
+
+## Preparación de despliegue — 19 de octubre de 2026
+
+La rama feature/CB-DEPLOY-001 parte de 5e9d4b6 y depende del CMS, sin merge. Dominio autorizado: carlosburgosh.com. Estado: paquete y ensayos de despliegue; publicación Yachay pendiente de acceso efectivo al navegador/panel. No confundir el entorno Docker con producción.
+
+Construir desde un checkout limpio con ./deploy/build.ps1; VERSION y SHA256SUMS identifican el release. Ensayar la carpeta generada con ./deploy/test.ps1 -PackagePath RUTA_DEL_PAQUETE. La CI también adjunta el ZIP sin configuración privada. No usar paquetes dirty en producción. Detalle de estado, DNS, aislamiento, pruebas y pasos pendientes: [CB-DEPLOY-001-YACHAY.md](CB-DEPLOY-001-YACHAY.md).
