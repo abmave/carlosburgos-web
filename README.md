@@ -13,7 +13,7 @@ Web institucional y CMS propio.
 
 ```powershell
 cd C:\DEV
-git clone https://github.com/abmave/carlosburgos-web.git carlosburgos
+git clone --branch feature/CB-CMS-002 https://github.com/abmave/carlosburgos-web.git carlosburgos
 cd carlosburgos
 ```
 
@@ -37,9 +37,9 @@ Solo Docker Desktop con contenedores Linux y Compose v2.
 
 ```powershell
 cd C:\DEV\carlosburgos
-docker compose up -d --build --wait --wait-timeout 300
+./docker/start-local.ps1
 ```
 
 Web: http://localhost:5180 · CMS: http://localhost:5180/admin
 
-[Arranque, creación del administrador y persistencia](docs/DOCKER.md).
+[Continuidad para casa y estado real](docs/CONTINUIDAD-CASA.md) · [Operación del CMS](docs/CB-CMS-002-RUNBOOK.md).
