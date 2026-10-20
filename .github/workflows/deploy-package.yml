@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build versioned package in Docker
         shell: pwsh
-        run: ./deploy/build.ps1
+        run: ./deploy/build.ps1 -PrivateRoot /home2/rakhidlp/carlosburgosh-private
       - name: Apache HTTPS package acceptance
         shell: pwsh
         run: |

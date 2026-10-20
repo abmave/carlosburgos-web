@@ -28,6 +28,7 @@ services:
       CB_TEST_MODE: '1'
     volumes:
       - ${CB_RELEASE_PATH:?}:/srv/carlos:ro
+      - ${CB_RELEASE_PATH:?}/private:${CB_PRIVATE_ROOT:-/srv/carlos-alternate-private}:ro
       - storage:/storage
       - ../tests:/tests:ro
       - ../deploy:/checks:ro

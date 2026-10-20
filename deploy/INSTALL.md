@@ -17,3 +17,6 @@ Mantener noindex mientras contenido profesional y salida pública final no esté
 Antes de cambiar una instalación Carlos existente, suspender escrituras y respaldar conjuntamente sus archivos, configuración, base y almacenamiento fuera de HTTP. Restaurar primero de forma aislada. No respaldar DaleOK.
 Reversión: volver al release anterior con su configuración y almacenamiento compatible. Si cambió el esquema, no revertir base a ciegas: restaurar copia conjunta solo tras preservar nuevas escrituras y revisar compatibilidad. No importar una base vacía.
 Verificación final: HTTPS, www→principal, portada, panel, API, cookie Secure/HttpOnly/SameSite, sesión/CSRF/permisos, imagen, política PDF, rutas privadas denegadas, móvil/escritorio y lectura de DaleOK antes/después.
+
+## Ruta privada alternativa
+Si el dominio ya apunta a public_html/carlosburgosh, construir con ./deploy/build.ps1 -PrivateRoot /home2/rakhidlp/carlosburgosh-private. Copiar el CONTENIDO de public/ a la raíz asignada al dominio y el CONTENIDO de private/ a esa ruta privada. LAYOUT.json registra la ruta que usa el puente; no mover private/ dentro de public_html. No instalar el ZIP completo en la carpeta pública. El ensayo Docker monta y prueba la misma ruta absoluta. La ruta privada es propuesta y debe crearse; la raíz pública fue confirmada por el titular en cPanel el 20 de octubre de 2026.

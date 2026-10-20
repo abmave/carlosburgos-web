@@ -1,4 +1,4 @@
-param([switch]$AllowDirty)
+param([switch]$AllowDirty, [string]$PrivateRoot = "")
 $ErrorActionPreference='Stop'
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
@@ -26,6 +26,12 @@ try {
  Copy-Item deploy/config.production.example.php "$out/private/api/config.example.php"
  Copy-Item deploy/public.htaccess "$out/public/.htaccess"
  Copy-Item deploy/bridge.php "$out/public/api/index.php"
+ if ($PrivateRoot) {
+  if ($PrivateRoot -notmatch '^/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+$' -or $PrivateRoot -match '/public_html(?:/|$)') { throw 'PrivateRoot must be an absolute private Linux directory outside public_html.' }
+  $bridge="<?php`ndeclare(strict_types=1);`nrequire '$PrivateRoot/api/public/index.php';`n"
+  [IO.File]::WriteAllText("$out/public/api/index.php",$bridge,[Text.UTF8Encoding]::new($false))
+ }
+ [IO.File]::WriteAllText("$out/LAYOUT.json",(@{ private_root=$PrivateRoot } | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
  Copy-Item api/storage.htaccess "$out/private/.htaccess"
  Copy-Item deploy/INSTALL.md "$out/INSTALL.md"
  [IO.File]::WriteAllText("$out/VERSION",$version,[Text.UTF8Encoding]::new($false))

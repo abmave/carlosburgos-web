@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 Push-Location (Join-Path $PSScriptRoot '..')
 $project='cb-deploy-test-'+[DateTime]::UtcNow.ToString('yyyyMMddHHmmss')
 $previous=@{}
-foreach($key in @('CB_DB_PASSWORD','CB_DB_ROOT_PASSWORD','CB_RELEASE_PATH','CB_PDF_UPLOADS')) { $previous[$key]=[Environment]::GetEnvironmentVariable($key,'Process') }
+foreach($key in @('CB_DB_PASSWORD','CB_DB_ROOT_PASSWORD','CB_RELEASE_PATH','CB_PDF_UPLOADS','CB_PRIVATE_ROOT')) { $previous[$key]=[Environment]::GetEnvironmentVariable($key,'Process') }
 function Compose { docker compose -p $project -f deploy/compose.yaml @args; if($LASTEXITCODE -ne 0){throw "Docker test failed: $($args[0])"} }
 try {
  $packageRoot=(Resolve-Path -LiteralPath $PackagePath).Path
@@ -19,6 +19,11 @@ try {
   $_.FullName -match '[/\\](node_modules|\.git|tests|backups|sessions)[/\\]'
  }
  if ($forbidden) { throw 'Forbidden private/dependency file in package' }
+ $env:CB_PRIVATE_ROOT='/srv/carlos-alternate-private'
+ if (Test-Path "$packageRoot/LAYOUT.json") {
+  $layout=Get-Content "$packageRoot/LAYOUT.json" -Raw | ConvertFrom-Json
+  if ($layout.private_root) { $env:CB_PRIVATE_ROOT=$layout.private_root }
+ }
  Write-Output 'PASS package checksums and excluded private files.'
  $env:CB_RELEASE_PATH=(Resolve-Path -LiteralPath $PackagePath).Path
  $env:CB_DB_PASSWORD=[Guid]::NewGuid().ToString('N')+[Guid]::NewGuid().ToString('N')

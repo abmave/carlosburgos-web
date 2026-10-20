@@ -93,3 +93,7 @@ El script docker/backup.ps1 existe; esta revisión no generó ni trasladó respa
 5. Revisar PR #1 y #2. Ninguno se fusiona por este encargo.
 
 Detalle de instalación y reversión: [CB-DEPLOY-001-YACHAY.md](CB-DEPLOY-001-YACHAY.md), [INSTALL.md](../deploy/INSTALL.md). Historia del CMS: [verificación](CB-CMS-002-VERIFICATION.md), [runbook](CB-CMS-002-RUNBOOK.md).
+
+## Raíz confirmada por cPanel — 20 de octubre de 2026
+
+La captura de Dominios del titular confirma carlosburgosh.com → /public_html/carlosburgosh; el administrador de archivos muestra home /home2/rakhidlp. Para esta instalación construir con ./deploy/build.ps1 -PrivateRoot /home2/rakhidlp/carlosburgosh-private. El contenido de public/ va a /home2/rakhidlp/public_html/carlosburgosh y el contenido de private/ a /home2/rakhidlp/carlosburgosh-private. Esta última carpeta es propuesta, no se ha creado remotamente. LAYOUT.json registra la ruta privada y el ensayo Docker prueba el puente absoluto. No usar el paquete anterior de carpetas hermanas sin adaptar. La captura no acredita certificado HTTPS, compatibilidad PHP, base ni publicación; siguen pendientes.
