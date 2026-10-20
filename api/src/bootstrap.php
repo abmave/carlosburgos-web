@@ -24,6 +24,24 @@ function config(): array {
     }
     return $config;
 }
+
+function storagePath(): string {
+    return getenv('CB_STORAGE_PATH') ?: (config()['storage_path'] ?? dirname(__DIR__).'/storage');
+}
+function publicOrigin(): string {
+    $origin = getenv('CB_PUBLIC_ORIGIN') ?: (config()['public_origin'] ?? '');
+    if ($origin === '' && (config()['environment'] ?? 'production') === 'local') $origin='http://localhost:5180';
+    $parts=parse_url($origin);
+    if (!$parts || !isset($parts['scheme'],$parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment']) || (isset($parts['path']) && $parts['path']!=='') || !in_array($parts['scheme'],['http','https'],true) || ((config()['environment']??'production')!=='local' && $parts['scheme']!=='https')) {
+        throw new RuntimeException('Configure a valid public_origin HTTPS origin without path or credentials');
+    }
+    return $origin;
+}
+function pdfUploadsEnabled(): bool {
+    $env=getenv('CB_PDF_UPLOADS');
+    return $env!==false ? $env==='1' : (config()['pdf_uploads'] ?? true)===true;
+}
+
 function db(): PDO {
     static $db;
     if (!$db) {
@@ -55,7 +73,7 @@ function beginSession(): void {
     ini_set('session.use_only_cookies', '1');
     session_name('cb_session');
     session_set_cookie_params(['lifetime' => 0, 'path' => '/api', 'secure' => $production, 'httponly' => true, 'samesite' => 'Strict']);
-    $sessionPath = (getenv('CB_STORAGE_PATH') ?: dirname(__DIR__).'/storage') . '/sessions';
+    $sessionPath = storagePath() . '/sessions';
     if (!is_dir($sessionPath) && !mkdir($sessionPath, 0700, true) && !is_dir($sessionPath)) throw new RuntimeException('Session directory unavailable');
     session_save_path($sessionPath);
     if (!session_start()) throw new RuntimeException('Session unavailable');
